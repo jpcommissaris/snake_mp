@@ -9,6 +9,7 @@ const MAX_CONNS = 8;
 
 const players = Array(MAX_CONNS).fill(null); 
 let food = []
+let clients = 0; 
 
 // -- OBJECTS FOR THE GAME --
 class Game {
@@ -24,13 +25,32 @@ class Game {
   }
   checkFood(snake){
       //// turn into loop
-      food.forEach(f => {
-          if(f.x ==  snake.px && f.y ==  snake.py ){
-              snake.tail+=2; 
-              food[food.indexOf(f)] = this.createFood();
-              console.log(snake.tail)
+      if(clients > 1){
+        food.forEach(f => {
+            if(f.x ==  snake.px && f.y ==  snake.py ){
+                snake.tail+=2; 
+                food[food.indexOf(f)] = this.createFood();
+            }
+        });
+      }
+  }
+  checkWinner(){
+    let winner = -1;
+    if(clients > 1){
+      let alive = 0;
+      for(let i = 0; i < players.length; i++){
+        if(players[i]){
+          if(players[i].lives > 0){
+            winner = i; 
+            alive++; 
+          } 
+          if(alive >= 2){
+            return -1;
           }
-      });
+        }
+      }
+    }
+    return winner; 
   }
   checkDeath(snake){
       //if snake hits wall
@@ -39,19 +59,23 @@ class Game {
             this.respawn(snake);
       }
       //if snake hits another snake or itself
-      players.forEach((other) => {
-        if(other){
-          for(let i=0; i<other.trail.length; i++){
-              if(other.trail[i].x === snake.px && other.trail[i].y === snake.py ){
-                console.log('dead', snake.px, snake.py);
-                if(other.px === snake.px && other.py === snake.py ) { //check head to head
-                  this.respawn(other);
+      if(snake.immune >= 15){
+        players.forEach((other) => {
+          if(other && other.immune >= 15){
+            for(let i=0; i<other.trail.length; i++){
+                if(other.trail[i].x === snake.px && other.trail[i].y === snake.py ){
+                  console.log('dead', snake.px, snake.py);
+                  if(other.px === snake.px && other.py === snake.py ) { //check head to head
+                    this.respawn(other);
+                  }
+                  this.respawn(snake);
                 }
-                this.respawn(snake);
-              }
+            }
           }
-        }
-      });
+        });
+      }else{
+        snake.immune++; 
+      }
   }
   respawn(snake){
       const x = Math.floor(Math.random()*(this.tc[0]-10))+5
@@ -62,13 +86,19 @@ class Game {
       snake.vx = 0;
       snake.vy = 1;
       snake.trail = []; 
+      snake.immune = 0; 
+      if(clients > 1){
+        snake.lives--; 
+      }else if(clients === 1){
+        snake.lives = 3; 
+      }
   }
 };
 
 const game = new Game(); 
 
 // -- GAME LOOP HERE --
-setInterval(handleLogic,1000/5);
+setInterval(handleLogic,1000/15);
 
   // handle the core functins of the sankes
 function handleLogic() {
@@ -87,6 +117,18 @@ function handleLogic() {
           }
         }
     });
+    //if theres a winn restart game
+    let pn = game.checkWinner()
+    if( pn != -1){
+      players[pn].score++; 
+      console.log(players[pn], players[pn].score)
+      players.forEach(snake => {
+        if(snake){
+          snake.lives = 4;
+          game.respawn(snake); 
+        }
+      })
+    }
     sendData(); 
 } 
 
@@ -117,11 +159,11 @@ function addPlayer(data){
       food.push(game.createFood());
       sendData(); 
       this.emit('pn', i)
+      clients++; 
       break;
     }
   }
-  console.log(players);
-  
+  console.log('User joined game'); 
 }
 function sendData(){
   io.emit('data', {players: players, food: food}); 
@@ -136,6 +178,8 @@ function disconnect(){
       if(players[i].id === this.id){ 
         console.log('A user disconnected with id: ', players[i].id);
         players[i] = null;
+        food.pop();
+        clients--; 
         break; 
       }
     }
@@ -146,19 +190,21 @@ function disconnect(){
 function update(data){
   players[data.pn].vx = data.vx; //update players with data that socket sends
   players[data.pn].vy = data.vy;
-  console.log(players); 
 }
 
 function createSnake(name, id){
   return ({
-    name: name, 
-    id: id, 
-    px: 0,
+    name: name,  //playername
+    id: id, //socket id
+    px: 0, //positions and velocity
     py: 0,
     vx: 0, 
     vy: 0,
-    tail: 5, 
-    trail: []
+    tail: 5, //length
+    trail: [],  //previous positions
+    immune: 0, //can be killed?
+    lives: 4,
+    score: 0 
   });
 }
 

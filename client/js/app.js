@@ -17,9 +17,9 @@ let size = canv.width/(tc[0]+2)
 let gameRect = [size, size, size*tc[0], size*tc[1]];
 let playernum = -1; 
 let players = [null]; 
+let food = []; 
 
-let food = [{x: 10, y: 20}]; 
-let color = ['lightgreen', 'lightblue', 'violet', 'orange']; 
+let color = ['lightgreen', 'lightblue', 'violet', 'orange', 'pink']; 
 
 socket.on('pn', (pn) => {
     playernum = pn;
@@ -42,8 +42,14 @@ function handleGraphics(){
     // paint snake
     let i =0; 
     players.forEach(snake => {
-        ctx.fillStyle= color[i]; 
+        
+        //have color as server prop so graphcis does less computation?
         if(snake != null){
+            if(snake.immune < 15){
+                ctx.fillStyle = 'yellow'  ;
+            }else{
+                ctx.fillStyle = color[i]; 
+            }
             draw(snake, ctx)
         }
         i++; 
@@ -57,8 +63,10 @@ function drawScores(ctx){
     players.forEach(snake => {
         if(snake){
             ctx.fillStyle= color[i]; 
-            text = snake.name + "'s Score: " + (snake.tail-5); 
+            text = snake.name + "'s Score: " + snake.score; 
             ctx.fillText(text, size*7*(i+1) -size*5, size*2); 
+            text = "lives: " + snake.lives; 
+            ctx.fillText(text,  size*7*(i+1) -size*5, size*40);
         }
         i++; 
     })
@@ -111,6 +119,7 @@ window.onload = function() {
         // check if the nick is valid
         if (validNick()) {
             startGame();
+            //highscore button?
         } else {
             nickErrorText.style.display = 'inline';
         }
