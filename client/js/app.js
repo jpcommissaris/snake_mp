@@ -1,6 +1,11 @@
 let playerName;
 let playerNameInput = document.getElementById('playerNameInput');
+const MAX_CONNS = 8; 
+
 let socket;
+socket = io();
+
+let game; 
 
 let canv = document.getElementById('cvs');
 let ctx = canv.getContext('2d');
@@ -13,40 +18,58 @@ let tc = [60, 40];
 let size = canv.width/(tc[0]+2)
 let gameRect = [size, size, size*tc[0], size*tc[1]];
 
-colors = ["lime", "lightblue", "orange", "purple"]
 
-
-
+// baseline object 
+let SnakeEX = {
+    name: "",
+    playernum: -1,
+    color: (0,0,0),
+    px: 0,
+    py: 0,
+    vx: 0, 
+    vy: 0,
+    tail: 0, 
+    trail: []
+}
 
 
 // -- OBJECTS FOR THE GAME --
 class Game {
     constructor(){
-        this.players = []; 
-        this.playernum = 1; ///next avaible space in list
-        this.players.push(new Snake(this.playernum, playerName));
-        this.players.push(new Snake(2, "andrew")); 
+        this.players = Array(MAX_CONNS).fill(null) ;
+        this.playernum = -1; ///next avaible space in list
         this.food = []
         this.food.push(this.createFood());
         this.food.push(this.createFood());
     }
 
     getMe(){
-        return this.players[this.playernum-1]; 
+        return this.players[this.playernum]; 
     }
 
-    handleNetwork(socket) {
-        socket.getData(); 
-        
+    handleNetwork() {
+        socket.on('data', (data) => {
+            let pn = 0; 
+            Object.values(data).forEach(snake => {
+                pn = snake.playernum;
+                this.players[pn] = snake;
+                //this.playernum = pn
+              });
+        }); 
+        if(game.getMe()){
+            socket.emit('datarequest', game.getMe()); //send data to server
+        }
     }
 
     handleLogic() {
         this.players.forEach(snake => {
-            snake.move();
-            this.checkFood(snake); 
-            if(this.checkDeath(snake)){
-                console.log('dead', snake.px, snake.py);
-                snake.respawn();
+            if(snake){
+                this.move(snake);
+                this.checkFood(snake); 
+                if(this.checkDeath(snake)){
+                    console.log('dead', snake.px, snake.py);
+                    this.respawn(snake);
+                }
             }
         });
     } 
@@ -63,10 +86,12 @@ class Game {
         this.food.forEach(f => {
             ctx.fillStyle="red"; 
             ctx.fillRect(f.x*size,f.y*size,size,size);
-        });
+        }); 
         // paint snake
         this.players.forEach(snake => {
-            snake.draw(ctx)
+            if(snake != null){
+                this.draw(snake, ctx)
+            }
         });
     }  
 
@@ -103,66 +128,51 @@ class Game {
     drawScores(ctx){
         let text = ""
         this.players.forEach(snake => {
-            ctx.fillStyle = snake.color;
-            text = snake.name + "'s Score: " + (snake.tail-5); 
-            ctx.fillText(text, size*7*snake.playernum -size*5, size*2); 
+            if(snake){
+                ctx.fillStyle = snake.color;
+                text = snake.name + "'s Score: " + (snake.tail-5); 
+                ctx.fillText(text, size*7*(snake.playernum+1) -size*5, size*2); 
+            }
         })
 
     }
-};
 
-class Snake{ 
-    constructor(player, playerName){
-        this.name = playerName;
-        this.playernum = player;
-        this.lives = 4; //for displaying lives left
-        this.respawn(); 
-        this.color = colors[this.playernum-1]
-        
+    // methods to apply on snake
+    respawn(snake){
+        snake.px = 5 * (snake.playernum+1); 
+        snake.py = 5; 
+        snake.tail = 5;
+        snake.vx = snake.vy = 0;
+        snake.trail = []; 
     }
-    respawn(){
-        this.lives--; 
-        this.alive = true;
-        this.px = 5 * this.playernum; 
-        this.py = 5; 
-        this.tail = 5;
-        this.vx = this.vy = 0;
-        this.trail = []; 
-    }
-
-    move(){
-        this.px+= this.vx;
-        this.py+= this.vy;
-        for(var i=0; i<this.trail.length; i++){
-            if(this.trail[i].x == this.px && this.trail[i].y == this.py ){
-                this.tail = 5; 
-                this.respawn();
+    move(snake){
+        snake.px+= snake.vx;
+        snake.py+= snake.vy;
+        for(var i=0; i<snake.trail.length; i++){
+            if(snake.trail[i].x == snake.px && snake.trail[i].y == snake.py ){
+                snake.tail = 5; 
+                this.respawn(snake);
             }
         } 
-        this.trail.push({x: this.px,y: this.py}); 
-        while( this.trail.length> this.tail){
-            this.trail.shift()
+        snake.trail.push({x: snake.px,y: snake.py}); 
+        while( snake.trail.length> snake.tail){
+            snake.trail.shift()
         }
     }
-
-    draw(ctx){
+    draw(snake, ctx){
         //paint snake
-        ctx.fillStyle= this.color; 
-        for(var i=0; i<this.trail.length; i++){
-            ctx.fillRect(this.trail[i].x*size, this.trail[i].y*size, size-2, size-2)
+        ctx.fillStyle= snake.color; 
+        for(let i=0; i<snake.trail.length; i++){
+            ctx.fillRect(snake.trail[i].x*size, snake.trail[i].y*size, size-2, size-2)
         } 
     }
-    //object to send to server
-    getData(){
-        return ({
-            name: this.name, 
-            playernum: this.playernum, 
-            vx: this.vx, 
-            vy: this.vy
-        });
-    }
 
-}; 
+};
+
+game  = new Game();  
+socket.on('pn', (pn) => {
+    game.playernum = pn;
+}) 
 
 
 // -- menu screen and setup -- 
@@ -171,10 +181,13 @@ function startGame() {
     playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '');
     document.getElementById('gameAreaWrapper').style.display = 'block';
     document.getElementById('startMenuWrapper').style.display = 'none';
-    socket = io();
-    socket.emit('newplayer', {playerName: playerName}); //sends json
-    game = new Game()
-    setInterval(gameloop,1000/15);
+    
+    game.handleNetwork()
+    // add player
+    socket.emit('addplayer', {playerName: playerName}); //sends json
+   
+    
+    setInterval(gameloop,1000/5);
 }
 
 // check if nick is valid alphanumeric characters (and underscores)
@@ -210,9 +223,12 @@ window.onload = function() {
 
 // -- GAME LOOP HERE --
 function gameloop(){
+    //console.log(game, socket)
     window.addEventListener('keydown', getDirection);
+    //game.handleNetwork(socket);
     game.handleLogic();
     game.handleGraphics(ctx);
+    game.handleNetwork(socket);
 }
 
 
@@ -228,23 +244,26 @@ window.addEventListener('resize', () => {
 
 function getDirection(evt){
     //switch direction as long as its not a 180
-    switch(evt.keyCode){
-        case 37: //left
-            if(game.getMe().vx != 1){
-                game.getMe().vx=-1; game.getMe().vy=0;
-            } break;
-        case 38: //up
-            if(game.getMe().vy != 1){
-                game.getMe().vx=0; game.getMe().vy=-1;
-            } break;
-        case 39://right
-            if(game.getMe().vx != -1){
-                game.getMe().vx=1; game.getMe().vy=0; 
-            } break;
-        case 40: //down
-            if(game.getMe().vy != -1){
-                game.getMe().vx=0; game.getMe().vy=1;
-            } break;
+    console.log('here')
+    if(this.playernum != -1){
+        switch(evt.keyCode){
+            case 37: //left
+                if(game.getMe().vx != 1){
+                    game.getMe().vx=-1; game.getMe().vy=0;
+                } break;
+            case 38: //up
+                if(game.getMe().vy != 1){
+                    game.getMe().vx=0; game.getMe().vy=-1;
+                } break;
+            case 39://right
+                if(game.getMe().vx != -1){
+                    game.getMe().vx=1; game.getMe().vy=0; 
+                } break;
+            case 40: //down
+                if(game.getMe().vy != -1){
+                    game.getMe().vx=0; game.getMe().vy=1;
+                } break;
+        }
     }
     window.removeEventListener('keydown', getDirection); //remove so no runinto self
 };

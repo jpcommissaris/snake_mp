@@ -3,3 +3,6 @@ npm-debug.log
 .idea
 bin
 .DS_Store
+package-lock.json
+
+
