@@ -4,13 +4,13 @@
   "description": "Game description here",
   "main": "server/server.js",
   "scripts": {
-    "start": "node server/server.js", 
+    "start": "node server/server.js",
     "dev": "nodemon server/server.js"
   },
   "author": "Your Name",
   "dependencies": {
-    "express": "^4.13.0",
-    "socket.io": "^1.3.5"
+    "express": "^4.17.1",
+    "socket.io": "^1.7.4"
   },
   "devDependencies": {
     "nodemon": "^2.0.2"
