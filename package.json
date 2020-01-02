@@ -4,8 +4,8 @@
   "description": "Game description here",
   "main": "server/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server/server.js"
+    "start": "node server/server.js", 
+    "dev": "nodemon server/server.js"
   },
   "author": "Your Name",
   "dependencies": {
