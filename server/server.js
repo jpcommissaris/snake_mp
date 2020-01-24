@@ -102,6 +102,7 @@ setInterval(handleLogic,1000/15);
 
   // handle the core functins of the sankes
 function handleLogic() {
+    if(clients > 1){
     players.forEach(snake => {
         if(snake){
           //move 
@@ -117,6 +118,7 @@ function handleLogic() {
           }
         }
     });
+    }
     //if theres a winn restart game
     let pn = game.checkWinner()
     if( pn != -1){
@@ -160,6 +162,7 @@ function addPlayer(data){
       sendData(); 
       this.emit('pn', i)
       clients++; 
+      this.emit('clients', clients)
       break;
     }
   }

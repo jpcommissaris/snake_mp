@@ -17,12 +17,16 @@ let size = canv.width/(tc[0]+2)
 let gameRect = [size, size, size*tc[0], size*tc[1]];
 let playernum = -1; 
 let players = [null]; 
+let clients = 0;
 let food = []; 
 
 let color = ['lightgreen', 'lightblue', 'violet', 'orange', 'pink']; 
 
 socket.on('pn', (pn) => {
     playernum = pn;
+}) 
+socket.on('clients', (client) => {
+    clients = client;
 }) 
 
 function handleGraphics(){
@@ -70,6 +74,10 @@ function drawScores(ctx){
         }
         i++; 
     })
+    ctx.fillStyle= 'red'; 
+    text = "clients: " + clients; 
+    ctx.fillText(text, size*56, size*40);
+
 
 }
 function draw(snake, ctx){
@@ -153,7 +161,6 @@ window.addEventListener('resize', () => {
 
 function getDirection(evt){
     //switch direction as long as its not a 180
-    console.log('here')
     let vx = players[playernum].vx
     let vy = players[playernum].vy
     if(this.playernum != -1){

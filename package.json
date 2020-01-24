@@ -1,5 +1,5 @@
 {
-  "name": "your-game-name-here",
+  "name": "Snake",
   "version": "1.0.0",
   "description": "Game description here",
   "main": "server/server.js",
@@ -7,7 +7,7 @@
     "start": "node server/server.js",
     "dev": "nodemon server/server.js"
   },
-  "author": "Your Name",
+  "author": "Julian Commissaris",
   "dependencies": {
     "express": "^4.17.1",
     "socket.io": "^1.7.4"
